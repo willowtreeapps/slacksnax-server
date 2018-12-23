@@ -1,42 +1,41 @@
+const monogoUri = process.env.MONGODB_URI;
 
-const monogoUri = process.env.MONGODB_URI
+const fastify = require("fastify")();
+fastify.log = console;
 
-const fastify = require('fastify')()
-fastify.log = console
+require("dotenv").config();
 
+const port = process.env.PORT || 1234;
 
+fastify.register(require("fastify-formbody"));
+fastify.register(
+    require("fastify-mongoose"),
+    {
+        uri: monogoUri,
+    },
+    err => {
+        if (err) throw err;
+    }
+);
 
-require('dotenv').config()
+fastify.get("/", async () => {
+    return "Hello World!";
+});
 
-
-const port = process.env.PORT || 1234
-
-fastify.register(require('fastify-formbody'))
-fastify.register(require('fastify-mongoose'), {
-    uri: monogoUri
-  }, err => {
-    if (err) throw err
-  })
-
-fastify.get('/', async (request, reply) => {
-    return "Hello World!"
-})
-
-fastify.register(require('./routes/auth.js'))
-fastify.register(require('./routes/commands.js'))
-fastify.register(require('./model.js'))
+fastify.register(require("./routes/auth.js"));
+fastify.register(require("./routes/commands.js"));
+fastify.register(require("./model.js"));
 
 const start = async () => {
     try {
-        await fastify.listen(port,'0.0.0.0')
+        await fastify.listen(port, "0.0.0.0");
 
-        fastify.log.info(fastify.printRoutes())
-        fastify.log.info(`Listening on ${fastify.server.address().port}`)
+        fastify.log.info(fastify.printRoutes());
+        fastify.log.info(`Listening on ${fastify.server.address().port}`);
     } catch (err) {
-        fastify.log.error(err)
-        process.exit(1)
+        fastify.log.error(err);
+        process.exit(1);
     }
-}
+};
 
-
-start()
+start();
