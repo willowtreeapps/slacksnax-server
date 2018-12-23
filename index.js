@@ -23,6 +23,7 @@ fastify.get('/', async (request, reply) => {
 })
 
 fastify.register(require('./routes/auth.js'))
+fastify.register(require('./routes/commands.js'))
 fastify.register(require('./model.js'))
 
 const start = async () => {
