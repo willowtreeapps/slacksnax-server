@@ -2,12 +2,12 @@ const Slack = require("../slack");
 
 module.exports = async function routes(fastify) {
     fastify.get("/oauthCallback", async (request, reply) => {
-        console.log(request.query);
-
         let code = request.query["code"];
 
         Slack.getTokenForOauthCode(code)
             .then(response => {
+                request.log.trace("Got token for OAuth request");
+
                 let AuthedTeam = fastify.models.AuthedTeam;
 
                 const teamId = response["team_id"];
@@ -25,20 +25,29 @@ module.exports = async function routes(fastify) {
                         throw err;
                     }
 
-                    const authedTeam = matchingTeam
+                    let teamExists = !!matchingTeam;
+
+                    const authedTeam = teamExists
                         ? matchingTeam.set(newTeamContents)
                         : new AuthedTeam(newTeamContents);
 
-                    authedTeam.save((err, savedTeam) => {
+                    authedTeam.save(err => {
                         if (err) {
                             throw err;
                         }
-                        console.log(savedTeam);
+
+                        request.log.info(
+                            teamExists
+                                ? `Updated OAuth token for team ${teamId}`
+                                : `Added new team ${teamId}`
+                        );
+
                         reply.send("Authentication Successful!");
                     });
                 });
             })
             .catch(err => {
+                request.log.error("Failed to get token for OAuth request", err);
                 reply.code = 500;
                 reply.send(err);
             });

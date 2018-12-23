@@ -13,8 +13,6 @@ class SlackClient {
             code: code,
         });
 
-        console.log("Result:", oauthResult);
-
         if (oauthResult.ok) {
             return oauthResult;
         } else {

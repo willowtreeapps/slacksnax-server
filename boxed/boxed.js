@@ -1,4 +1,5 @@
 const rp = require("request-promise");
+const logger = require("../logger");
 
 const boxedApiUrl = "https://www.boxed.com/api/search/";
 const boxedProductUrl = "https://www.boxed.com/product/";
@@ -14,10 +15,9 @@ class BoxedClient {
 
     /// Does not support pagination
     async search(snackName) {
-        console.log(snackName);
         let searchUrl = boxedApiUrl + encodeURIComponent(snackName.trim());
 
-        console.log(`Searching Boxed for ${snackName} at ${searchUrl}`);
+        logger.info(`Searching Boxed for ${snackName} at ${searchUrl}`);
 
         let response = JSON.parse(
             await rp(searchUrl, {
@@ -31,17 +31,15 @@ class BoxedClient {
         let products = response["data"]["productListEntities"];
 
         if (!products) {
-            console.log(
+            logger.debug(
                 `Searching Boxed for ${snackName} at ${searchUrl} failed, invalid response`,
                 response
             );
             return undefined;
         }
 
-        console.log(
-            `Searching Boxed for ${snackName} at ${searchUrl} returned ${
-                products.length
-            } products`
+        logger.debug(
+            `Searching Boxed for ${snackName} at ${searchUrl} returned ${products.length} products`
         );
 
         return products.map(product => {
@@ -55,9 +53,7 @@ class BoxedClient {
                 imageUrl: product["images"][0]["originalBase"],
                 upc: product["variantObject"]["upc"],
                 boxedId: product["variantObject"]["gid"],
-                boxedUrl: this.getUrlForProductId(
-                    product["variantObject"]["gid"]
-                ),
+                boxedUrl: this.getUrlForProductId(product["variantObject"]["gid"]),
             };
         });
     }

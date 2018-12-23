@@ -1,7 +1,10 @@
 const monogoUri = process.env.MONGODB_URI;
 
-const fastify = require("fastify")();
-fastify.log = console;
+const fastify = require("fastify")({
+    logger: {
+        level: "trace",
+    },
+});
 
 require("dotenv").config();
 
