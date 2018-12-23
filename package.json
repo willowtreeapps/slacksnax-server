@@ -7,5 +7,16 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@slack/client": "^4.8.0",
+    "dotenv": "^6.2.0",
+    "fastify": "^1.13.2",
+    "fastify-formbody": "^2.0.3",
+    "fastify-mongoose": "^0.2.1",
+    "fastify-plugin": "^1.4.0",
+    "mongoose": "^5.4.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.2"
+  }
 }
