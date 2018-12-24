@@ -15,6 +15,7 @@
     "fastify": "^1.13.2",
     "fastify-formbody": "^2.0.3",
     "fastify-mongoose": "^0.2.1",
+    "fastify-mongoose-odm": "^1.0.3",
     "fastify-plugin": "^1.4.0",
     "mongoose": "^5.4.0",
     "pino": "^5.10.4",

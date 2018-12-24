@@ -11,23 +11,19 @@ require("dotenv").config();
 const port = process.env.PORT || 1234;
 
 fastify.register(require("fastify-formbody"));
-fastify.register(
-    require("fastify-mongoose"),
-    {
-        uri: monogoUri,
-    },
-    err => {
-        if (err) throw err;
-    }
-);
+
+fastify.register(require("fastify-mongoose-odm"), monogoUri, err => {
+    if (err) throw err;
+});
 
 fastify.get("/", async () => {
     return "Hello World!";
 });
 
+fastify.register(require("./model.js"));
+
 fastify.register(require("./routes/auth.js"));
 fastify.register(require("./routes/commands.js"));
-fastify.register(require("./model.js"));
 
 const start = async () => {
     try {

@@ -4,9 +4,21 @@ const logger = require("../logger");
 const boxedApiUrl = "https://www.boxed.com/api/search/";
 const boxedProductUrl = "https://www.boxed.com/product/";
 
+const boxedProductLinkRegex = /.*boxed\.com\/product\/.*?\/(.*?(?=[/]))/;
+
 class BoxedClient {
+    getProductFromBoxedUrl(boxedUrl) {
+        let productMatches = boxedProductLinkRegex.exec(boxedUrl + "/");
+        if (!productMatches) {
+            return undefined;
+        }
+
+        return productMatches[1];
+    }
+
     async getSnackDetails(snackName) {
-        return await this.search(snackName)[0];
+        let results = await this.search(snackName);
+        return results != undefined ? results[0] : undefined;
     }
 
     getUrlForProductId(productId) {
@@ -53,7 +65,6 @@ class BoxedClient {
                 imageUrl: product["images"][0]["originalBase"],
                 upc: product["variantObject"]["upc"],
                 boxedId: product["variantObject"]["gid"],
-                boxedUrl: this.getUrlForProductId(product["variantObject"]["gid"]),
             };
         });
     }
