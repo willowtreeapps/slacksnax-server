@@ -26,6 +26,10 @@ fastify.register(require("./slack.js"));
 fastify.register(require("./routes/auth.js"));
 fastify.register(require("./routes/commands.js"));
 
+String.prototype.truncate = function(maxCharacters) {
+    return this.length > maxCharacters ? this.substring(0, maxCharacters) + "…" : this;
+};
+
 const start = async () => {
     try {
         await fastify.listen(port, "0.0.0.0");

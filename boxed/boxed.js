@@ -16,7 +16,10 @@ class BoxedClient {
         }
 
         let productId = productMatches[1];
+        return this.getSnackFromBoxedId(productId);
+    }
 
+    async getSnackFromBoxedId(productId) {
         if (isNaN(productId)) {
             return undefined;
         }
@@ -30,7 +33,7 @@ class BoxedClient {
                 json: true,
             });
         } catch (err) {
-            logger.error(`Failed to make request for Boxed URL ${boxedUrl}`, err);
+            logger.error(`Failed to make request for Boxed URL ${productUrl}`, err);
             return undefined;
         }
 
@@ -38,14 +41,14 @@ class BoxedClient {
 
         if (!productPayload || !productPayload["variant"]) {
             logger.error(
-                `Searching Boxed for ${boxedUrl} failed, invalid response`,
+                `Searching Boxed for ${productUrl} failed, invalid response`,
                 JSON.stringify(response).slice(0, 100)
             );
             return undefined;
         }
 
         logger.trace(
-            `Searching Boxed for ${boxedUrl} returned ${productPayload}`,
+            `Searching Boxed for ${productUrl} returned ${productPayload}`,
             JSON.stringify(response).slice(0, 100)
         );
 

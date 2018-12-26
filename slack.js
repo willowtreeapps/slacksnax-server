@@ -11,11 +11,15 @@ class SlackClient {
     constructor(fastify) {
         this.fastify = fastify;
         this.actionHandlers = [];
-        fastify.post("/slack/actions", this.handleAction);
+        fastify.post("/slack/actions", (request, reply) => {
+            this.handleAction(request, reply);
+        });
     }
 
-    async handleAction(request, reply) {
-        this.actionHandlers.forEach(handler => handler(request, reply));
+    handleAction(request, reply) {
+        this.actionHandlers.forEach(handler =>
+            handler(JSON.parse(request.body["payload"]), request, reply)
+        );
     }
 
     addActionHandler(action) {
@@ -46,6 +50,7 @@ class SlackClient {
                 json: true,
                 body: {
                     text: text,
+                    response_type: "ephemeral",
                 },
             });
         };
@@ -55,6 +60,7 @@ class SlackClient {
                 json: true,
                 body: {
                     text: "Sorry an internal error has occurrred",
+                    response_type: "ephemeral",
                 },
             });
         };
