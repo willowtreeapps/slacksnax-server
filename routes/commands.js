@@ -1,5 +1,4 @@
 const Boxed = require("../boxed/boxed");
-const Slack = require("../slack");
 const SlackResponses = require("../slackresponses");
 const StringSimiliarity = require("string-similarity");
 
@@ -7,6 +6,8 @@ const minRequestNameSimiliarity = 0.7;
 const minRequestDescriptionSimiliarity = 0.8;
 
 module.exports = async function routes(fastify) {
+    const Slack = fastify.Slack;
+
     let SnackRequest = fastify.models.SnackRequest;
 
     fastify.post("/boxedSearch", async (request, reply) => {

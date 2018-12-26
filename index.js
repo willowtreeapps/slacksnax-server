@@ -21,6 +21,7 @@ fastify.get("/", async () => {
 });
 
 fastify.register(require("./model.js"));
+fastify.register(require("./slack.js"));
 
 fastify.register(require("./routes/auth.js"));
 fastify.register(require("./routes/commands.js"));

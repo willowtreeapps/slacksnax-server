@@ -1,6 +1,6 @@
-const Slack = require("../slack");
-
 module.exports = async function routes(fastify) {
+    const Slack = fastify.Slack;
+
     fastify.get("/oauthCallback", async (request, reply) => {
         let code = request.query["code"];
 
