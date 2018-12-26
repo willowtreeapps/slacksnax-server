@@ -20,7 +20,8 @@
     "mongoose": "^5.4.0",
     "pino": "^5.10.4",
     "request": "^2.88.0",
-    "request-promise": "^4.2.2"
+    "request-promise": "^4.2.2",
+    "string-similarity": "^3.0.0"
   },
   "devDependencies": {
     "eslint": "^5.11.0",

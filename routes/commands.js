@@ -1,6 +1,11 @@
 const Boxed = require("../boxed/boxed");
 const Slack = require("../slack");
 const SlackResponses = require("../slackresponses");
+const StringSimiliarity = require("string-similarity");
+
+const minRequestNameSimiliarity = 0.7;
+const minRequestDescriptionSimiliarity = 0.8;
+
 module.exports = async function routes(fastify) {
     let SnackRequest = fastify.models.SnackRequest;
 
@@ -39,7 +44,22 @@ module.exports = async function routes(fastify) {
         )
             .sort({ score: { $meta: "textScore" } })
             .limit(1);
+
         return results[0];
+    }
+
+    function getSnackSimilarity(snackA, snackB) {
+        let name = StringSimiliarity.compareTwoStrings(snackA.name || "", snackB.name || "");
+
+        let description = StringSimiliarity.compareTwoStrings(
+            snackA.description || "",
+            snackB.description || ""
+        );
+
+        return {
+            name,
+            description,
+        };
     }
 
     fastify.post("/addBoxedSnack", async (request, reply) => {
@@ -60,18 +80,23 @@ module.exports = async function routes(fastify) {
                 return;
             }
 
-        let currentRequester = {
-            _id: userId,
-            name: userName,
-            userId: userId,
-        };
+            let existingRequest = await findSnackRequestByText(newSnack.name);
+            let isExistingRequestSimilar = false;
+
+            if (existingRequest) {
+                let similarity = getSnackSimilarity(existingRequest.snack, newSnack);
+
+                isExistingRequestSimilar =
+                    similarity.name > minRequestNameSimiliarity &&
+                    similarity.description > minRequestDescriptionSimiliarity;
+            }
             let currentRequester = {
                 _id: userId,
                 name: userName,
                 userId: userId,
             };
 
-            if (existingRequest) {
+            if (isExistingRequestSimilar && existingRequest) {
                 request.log.trace(
                     "Found existing snack request for request: " + JSON.stringify(existingRequest)
                 );
@@ -90,6 +115,7 @@ module.exports = async function routes(fastify) {
                     await response.formatted(SlackResponses.alreadyRequested(existingRequest));
                 }
             } else {
+                request.log.trace("Creating new snack request");
                 let newSnackRequest = new SnackRequest({
                     originalRequestString: text,
                     initialRequester: currentRequester,
@@ -105,6 +131,7 @@ module.exports = async function routes(fastify) {
                 await response.formatted(SlackResponses.createdRequest(newSnackRequest));
             }
         } catch (err) {
+            request.log.error("Failed to handle request to add Boxed Item", err.stack, err);
             response.error(err);
         }
     });
