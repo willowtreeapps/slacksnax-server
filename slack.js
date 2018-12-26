@@ -1,4 +1,5 @@
 const { WebClient } = require("@slack/client");
+const rp = require("request-promise");
 
 const web = new WebClient();
 
@@ -18,6 +19,32 @@ class SlackClient {
         } else {
             throw new Error(oauthResult.error);
         }
+    }
+
+    callbacksForDelayedResponse(responseUrl) {
+        let formatted = async response => {
+            await rp.post(responseUrl, { json: true, body: response });
+        };
+
+        let text = async text => {
+            await rp.post(responseUrl, {
+                json: true,
+                body: {
+                    text: text,
+                },
+            });
+        };
+
+        let error = async () => {
+            return await rp.post(responseUrl, {
+                json: true,
+                body: {
+                    text: "Sorry an internal error has occurrred",
+                },
+            });
+        };
+
+        return { formatted, text, error };
     }
 }
 

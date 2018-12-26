@@ -27,7 +27,7 @@ module.exports = fp((fastify, opts, next) => {
         description: { type: String },
         imageUrl: { type: String },
         upc: { type: String },
-        boxedID: { type: String },
+        boxedId: { type: String },
     });
 
     let SnackRequest = Mongoose.model(

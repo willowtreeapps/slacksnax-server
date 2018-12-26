@@ -37,15 +37,24 @@ class BoxedClient {
         let productPayload = response["data"]["productPayload"];
 
         if (!productPayload || !productPayload["variant"]) {
-            logger.error(`Searching Boxed for ${boxedUrl} failed, invalid response`, response);
+            logger.error(
+                `Searching Boxed for ${boxedUrl} failed, invalid response`,
+                JSON.stringify(response).slice(0, 100)
+            );
             return undefined;
         }
 
-        logger.trace(`Searching Boxed for ${boxedUrl} returned ${productPayload}`, response);
+        logger.trace(
+            `Searching Boxed for ${boxedUrl} returned ${productPayload}`,
+            JSON.stringify(response).slice(0, 100)
+        );
 
         return {
             name: productPayload["variant"]["name"],
-            brand: productPayload["variant"]["product"]["brand"],
+            brand:
+                productPayload["variant"]["product"]["brand"] ||
+                productPayload["variant"]["brandingText"] ||
+                productPayload["variant"]["product"]["brandingText"],
             description:
                 productPayload["variant"]["product"]["longDescription"] ||
                 productPayload["variant"]["product"]["shortDescription"],

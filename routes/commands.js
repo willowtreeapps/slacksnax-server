@@ -1,5 +1,6 @@
 const Boxed = require("../boxed/boxed");
-
+const Slack = require("../slack");
+const SlackResponses = require("../slackresponses");
 module.exports = async function routes(fastify) {
     let SnackRequest = fastify.models.SnackRequest;
 
@@ -41,59 +42,70 @@ module.exports = async function routes(fastify) {
         return results[0];
     }
 
-    fastify.post("/addBoxedSnack", async request => {
-        let text = request.body["text"];
+    fastify.post("/addBoxedSnack", async (request, reply) => {
+        let response = Slack.callbacksForDelayedResponse(request.body["response_url"]);
+        try {
+            reply.send("Processing your request!");
 
-        let userId = request.body["user_id"];
-        let userName = request.body["user_name"];
+            let text = request.body["text"];
 
-        let snack = await Boxed.getSnackFromBoxedUrl(text);
+            let userId = request.body["user_id"];
+            let userName = request.body["user_name"];
 
-        if (!snack) {
-            //TODO: Use Boxed snack search to suggest an item
-            throw new Error("Are you sure that was a valid Boxed url?");
-        }
+            let newSnack = await Boxed.getSnackFromBoxedUrl(text);
 
-        let existingRequest = await findSnackRequestByText(snack.name);
+            if (!newSnack) {
+                //TODO: Use Boxed snack search to suggest an item
+                await response.error("Are you sure that was a valid Boxed url?");
+                return;
+            }
 
         let currentRequester = {
             _id: userId,
             name: userName,
             userId: userId,
         };
+            let currentRequester = {
+                _id: userId,
+                name: userName,
+                userId: userId,
+            };
 
-        if (existingRequest) {
-            request.log.trace(
-                "Found existing snack request for request: " + JSON.stringify(existingRequest)
-            );
-            if (
-                existingRequest.initialRequester.userId != userId &&
-                existingRequest.additionalRequesters.every(requester => requester.userId != userId)
-            ) {
-                existingRequest.additionalRequesters.push(currentRequester);
-                existingRequest.save(err => {
+            if (existingRequest) {
+                request.log.trace(
+                    "Found existing snack request for request: " + JSON.stringify(existingRequest)
+                );
+
+                // Make sure the current user is not the initial requester, or one of the additional requesters
+                // prettier-ignore
+                let isNewRequester =
+                    existingRequest.initialRequester.userId != userId &&
+                    existingRequest.additionalRequesters.every( requester => requester.userId != userId);
+
+                if (isNewRequester) {
+                    existingRequest.additionalRequesters.push(currentRequester);
+                    await existingRequest.save();
+                    await response.formatted(SlackResponses.addedRequester(existingRequest));
+                } else {
+                    await response.formatted(SlackResponses.alreadyRequested(existingRequest));
+                }
+            } else {
+                let newSnackRequest = new SnackRequest({
+                    originalRequestString: text,
+                    initialRequester: currentRequester,
+                    additionalRequesters: [],
+                    snack: newSnack,
+                });
+
+                newSnackRequest.save(err => {
                     if (err) {
                         throw err;
                     }
-                    return "Added requester to snack: " + JSON.stringify(existingRequest);
                 });
-            } else {
-                return "Already requester to snack: " + JSON.stringify(existingRequest);
+                await response.formatted(SlackResponses.createdRequest(newSnackRequest));
             }
-        } else {
-            let newSnackRequest = new SnackRequest({
-                originalRequestString: text,
-                initialRequester: currentRequester,
-                additionalRequesters: [],
-                snack: snack,
-            });
-
-            newSnackRequest.save(err => {
-                if (err) {
-                    throw err;
-                }
-            });
-            return "Created Snack Request: " + JSON.stringify(newSnackRequest);
+        } catch (err) {
+            response.error(err);
         }
     });
 };
