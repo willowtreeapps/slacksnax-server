@@ -30,30 +30,29 @@ module.exports = async function routes(fastify) {
         }
     });
 
-    function findSnackRequestByText(text) {
-        return SnackRequest.find(
+    async function findSnackRequestByText(text) {
+        let results = await SnackRequest.find(
             { $text: { $search: text } },
             { score: { $meta: "textScore" } },
             {}
         )
             .sort({ score: { $meta: "textScore" } })
             .limit(1);
+        return results[0];
     }
 
-    fastify.post("/addBoxedSnack", async (request, reply) => {
+    fastify.post("/addBoxedSnack", async request => {
         let text = request.body["text"];
 
         let userId = request.body["user_id"];
         let userName = request.body["user_name"];
 
-        let snackName = Boxed.getProductFromBoxedUrl(text);
+        let snack = await Boxed.getSnackFromBoxedUrl(text);
 
-        if (!snackName) {
+        if (!snack) {
             //TODO: Use Boxed snack search to suggest an item
             throw new Error("Are you sure that was a valid Boxed url?");
         }
-
-        let snack = await Boxed.getSnackDetails(snackName);
 
         let existingRequest = await findSnackRequestByText(snack.name);
 
@@ -63,7 +62,7 @@ module.exports = async function routes(fastify) {
             userId: userId,
         };
 
-        if (existingRequest && existingRequest.length > 0) {
+        if (existingRequest) {
             request.log.trace(
                 "Found existing snack request for request: " + JSON.stringify(existingRequest)
             );
@@ -76,10 +75,10 @@ module.exports = async function routes(fastify) {
                     if (err) {
                         throw err;
                     }
-                    reply.send("Added requester to snack: " + JSON.stringify(existingRequest));
+                    return "Added requester to snack: " + JSON.stringify(existingRequest);
                 });
             } else {
-                reply.send("Already requester to snack: " + JSON.stringify(existingRequest));
+                return "Already requester to snack: " + JSON.stringify(existingRequest);
             }
         } else {
             let newSnackRequest = new SnackRequest({
@@ -94,7 +93,7 @@ module.exports = async function routes(fastify) {
                     throw err;
                 }
             });
-            reply.send("Created Snack Request: " + JSON.stringify(newSnackRequest));
+            return "Created Snack Request: " + JSON.stringify(newSnackRequest);
         }
     });
 };
