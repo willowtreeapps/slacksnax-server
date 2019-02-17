@@ -1,5 +1,5 @@
 const Boxed = require("./boxed/boxed");
-
+const StateStore = require("./statestore");
 const getSnackRequestFields = (snackRequest, except) => {
     let fields = [
         {
@@ -114,10 +114,9 @@ I'll just make a note that you want that too ✅`,
                             emoji: true,
                             text: "Request This ✅",
                         },
-                        value: JSON.stringify({
-                            bi: boxedId,
-                            n: requester.name,
-                            ui: requester.userId,
+                        value: StateStore.storeState({
+                            boxedId,
+                            requester,
                         }),
                         action_id: "createNewRequest",
                     },
@@ -167,20 +166,18 @@ I'll just make a note that you want that too ✅`,
                             name: "addToExistingRequest",
                             text: "✅ Sure",
                             type: "button",
-                            value: JSON.stringify({
-                                ri: existingRequest._id,
-                                n: requester.name,
-                                ui: requester.userId,
+                            value: StateStore.storeState({
+                                existingRequest,
+                                requester,
                             }),
                         },
                         {
                             name: "createNewRequest",
                             text: "🙅 No, make a new request",
                             type: "button",
-                            value: JSON.stringify({
-                                bi: boxedId,
-                                n: requester.name,
-                                ui: requester.userId,
+                            value: StateStore.storeState({
+                                boxedId,
+                                requester,
                             }),
                         },
                     ],

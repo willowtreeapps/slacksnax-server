@@ -1,6 +1,7 @@
 const Boxed = require("../boxed/boxed");
 const SlackResponses = require("../slackresponses");
 const StringSimiliarity = require("string-similarity");
+const StateStore = require("../statestore");
 
 const minRequestNameSimiliarity = 0.7;
 const minRequestDescriptionSimiliarity = 0.8;
@@ -69,10 +70,6 @@ module.exports = async function routes(fastify) {
             .limit(1);
 
         return results[0];
-    }
-
-    async function findSnackRequestById(id) {
-        return await SnackRequest.findById(id);
     }
 
     function getSnackSimilarity(snackA, snackB) {
@@ -204,20 +201,14 @@ module.exports = async function routes(fastify) {
             let action = payload["actions"][0];
 
             let name = action["name"] || action["action_id"];
-            let value = JSON.parse(action["value"]);
+            let actionState = StateStore.retrieveState(action["value"]);
 
-            //ui = userId, ri = requestId, bi = boxedId, n = userName, due to Slack API limitations
-            let requester = {
-                _id: value["ui"],
-                userId: value["ui"],
-                name: value["n"],
-            };
+            let requester = actionState.requester;
 
-            let productId = value["bi"];
+            let productId = actionState.boxedId;
 
             if (name == "addToExistingRequest") {
-                let snackRequest = await findSnackRequestById(value["ri"]);
-                await addAdditionalRequester(snackRequest, requester, response);
+                await addAdditionalRequester(actionState.existingRequest, requester, response);
             } else if (name == "createNewRequest") {
                 request.log.trace("Creating new snack request");
                 await startSnackRequest(
