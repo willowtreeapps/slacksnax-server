@@ -16,6 +16,10 @@ fastify.register(require("fastify-mongoose-odm"), monogoUri, err => {
     if (err) throw err;
 });
 
+fastify.register(require("./fastify-redis"), {}, err => {
+    if (err) throw err;
+});
+
 fastify.get("/", async () => {
     return "Hello World!";
 });
