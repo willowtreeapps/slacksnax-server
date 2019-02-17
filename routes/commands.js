@@ -9,28 +9,50 @@ module.exports = async function routes(fastify) {
     const Slack = fastify.Slack;
 
     let SnackRequest = fastify.models.SnackRequest;
+    function flatten(arr) {
+        return arr.reduce(function(flat, toFlatten) {
+            return flat.concat(Array.isArray(toFlatten) ? flatten(toFlatten) : toFlatten);
+        }, []);
+    }
 
     fastify.post("/boxedSearch", async (request, reply) => {
         let text = request.body["text"];
+
+        let userId = request.body["user_id"];
+        let userName = request.body["user_name"];
+
+        let currentRequester = {
+            _id: userId,
+            name: userName,
+            userId: userId,
+        };
+
         try {
             let searchResults = await Boxed.search(text);
+            searchResults = searchResults.slice(0, 10);
             request.log.debug(
                 `Returning ${searchResults.length} products from product search for ${text}`
             );
-            let productList = searchResults
-                .map((product, index) => {
-                    return ` 
-                    Product #${index}: 
-                        Name: ${product.name}
-                        Description: ${product.description}
-                        Image URL: ${product.imageUrl}
-                        UPC: ${product.upc}
-                        Boxed ID: ${product.boxedId}
-                        Boxed URL: ${Boxed.getUrlForProductId(product.boxedId)}`;
-                })
-                .join("\n");
 
-            reply.send(productList);
+            let blockList = flatten(
+                searchResults.map(product =>
+                    SlackResponses.boxedSearchResult(
+                        product.name,
+                        product.imageUrl,
+                        product.description,
+                        product.boxedId,
+                        currentRequester
+                    )
+                )
+            );
+            let response = {
+                text: `Found ${searchResults.length} product(s) for ${text}`,
+                blocks: blockList,
+            };
+
+            request.log.debug(response);
+
+            reply.send(response);
         } catch (err) {
             reply.status = 500;
             reply.send(err);
@@ -66,6 +88,55 @@ module.exports = async function routes(fastify) {
             description,
         };
     }
+    async function startSnackRequest(userId, userName, request, response, productUrl) {
+        let newSnack = await Boxed.getSnackFromBoxedUrl(productUrl);
+
+        if (!newSnack) {
+            //TODO: Use Boxed snack search to suggest an item
+            await response.error("🤔 Are you sure that was a valid Boxed url?");
+            return;
+        }
+
+        let existingRequest = await findSnackRequestByText(newSnack.name);
+        let isExistingRequestSimilar = false;
+        let isExistingExactlySame = false;
+        if (existingRequest) {
+            let similarity = getSnackSimilarity(existingRequest.snack, newSnack);
+
+            isExistingRequestSimilar =
+                similarity.name > minRequestNameSimiliarity &&
+                similarity.description > minRequestDescriptionSimiliarity;
+
+            isExistingExactlySame = existingRequest.snack.boxedId == newSnack.boxedId;
+        }
+        let currentRequester = {
+            _id: userId,
+            name: userName,
+            userId: userId,
+        };
+
+        if (isExistingRequestSimilar && existingRequest) {
+            request.log.trace(
+                "Found existing snack request for request: " + JSON.stringify(existingRequest)
+            );
+
+            if (!isExistingExactlySame) {
+                await response.formatted(
+                    SlackResponses.similarRequest(
+                        existingRequest,
+                        newSnack,
+                        currentRequester,
+                        newSnack.boxedId
+                    )
+                );
+            } else {
+                await addAdditionalRequester(existingRequest, currentRequester, response);
+            }
+        } else {
+            request.log.trace("Creating new snack request");
+            await saveSnackRequest(productUrl, currentRequester, newSnack, response);
+        }
+    }
 
     fastify.post("/addBoxedSnack", async (request, reply) => {
         let response = Slack.callbacksForDelayedResponse(request.body["response_url"]);
@@ -74,58 +145,11 @@ module.exports = async function routes(fastify) {
             await reply.send();
             await response.text("⏳");
 
-            let text = request.body["text"];
+            let productUrl = request.body["text"];
 
             let userId = request.body["user_id"];
             let userName = request.body["user_name"];
-
-            let newSnack = await Boxed.getSnackFromBoxedUrl(text);
-
-            if (!newSnack) {
-                //TODO: Use Boxed snack search to suggest an item
-                await response.error("🤔 Are you sure that was a valid Boxed url?");
-                return;
-            }
-
-            let existingRequest = await findSnackRequestByText(newSnack.name);
-            let isExistingRequestSimilar = false;
-            let isExistingExactlySame = false;
-            if (existingRequest) {
-                let similarity = getSnackSimilarity(existingRequest.snack, newSnack);
-
-                isExistingRequestSimilar =
-                    similarity.name > minRequestNameSimiliarity &&
-                    similarity.description > minRequestDescriptionSimiliarity;
-
-                isExistingExactlySame = existingRequest.snack.boxedId == newSnack.boxedId;
-            }
-            let currentRequester = {
-                _id: userId,
-                name: userName,
-                userId: userId,
-            };
-
-            if (isExistingRequestSimilar && existingRequest) {
-                request.log.trace(
-                    "Found existing snack request for request: " + JSON.stringify(existingRequest)
-                );
-
-                if (!isExistingExactlySame) {
-                    await response.formatted(
-                        SlackResponses.similarRequest(
-                            existingRequest,
-                            newSnack,
-                            currentRequester,
-                            newSnack.boxedId
-                        )
-                    );
-                } else {
-                    await addAdditionalRequester(existingRequest, currentRequester, response);
-                }
-            } else {
-                request.log.trace("Creating new snack request");
-                await saveSnackRequest(text, currentRequester, newSnack, response);
-            }
+            startSnackRequest(userId, userName, request, response, productUrl);
         } catch (err) {
             request.log.error("Failed to handle request to add Boxed Item", err.stack, err);
             response.error(err);
@@ -166,9 +190,12 @@ module.exports = async function routes(fastify) {
 
     Slack.addActionHandler(
         (async (payload, request, reply) => {
-            if (payload["callback_id"] != "resolve_similar_request") {
+            let isBlockAction = payload["type"] === "block_actions";
+
+            if (!isBlockAction && payload["callback_id"] != "resolve_similar_request") {
                 return;
             }
+
             reply.code = 200;
             reply.send();
 
@@ -176,29 +203,37 @@ module.exports = async function routes(fastify) {
 
             let action = payload["actions"][0];
 
-            let name = action["name"];
+            let name = action["name"] || action["action_id"];
             let value = JSON.parse(action["value"]);
 
-            let requester = value["requester"];
+            //ui = userId, ri = requestId, bi = boxedId, n = userName, due to Slack API limitations
+            let requester = {
+                _id: value["ui"],
+                userId: value["ui"],
+                name: value["n"],
+            };
+
+            let productId = value["bi"];
 
             if (name == "addToExistingRequest") {
-                let snackRequest = await findSnackRequestById(value["requestId"]);
+                let snackRequest = await findSnackRequestById(value["ri"]);
                 await addAdditionalRequester(snackRequest, requester, response);
             } else if (name == "createNewRequest") {
                 request.log.trace("Creating new snack request");
-                let productId = value["boxedId"];
-                let snack = await Boxed.getSnackFromBoxedId(value["boxedId"]);
-                await saveSnackRequest(
-                    Boxed.getUrlForProductId(productId),
-                    requester,
-                    snack,
-                    response
+                await startSnackRequest(
+                    requester.userId,
+                    requester.name,
+                    request,
+                    response,
+                    Boxed.getUrlForProductId(productId)
                 );
             } else {
-                request.log.err(
-                    "No handler defined for resolve_similar_request action",
-                    request.body
-                );
+                if (!isBlockAction) {
+                    request.log.err(
+                        "No handler defined for resolve_similar_request action",
+                        request.body
+                    );
+                }
             }
         }).bind(this)
     );

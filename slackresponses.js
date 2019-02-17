@@ -85,6 +85,46 @@ I'll just make a note that you want that too ✅`,
             delete_original: true,
         };
     },
+    boxedSearchResult: (name, imageUrl, description, boxedId, requester) => {
+        return [
+            {
+                type: "section",
+                text: {
+                    type: "mrkdwn",
+                    text: `*${name}*`,
+                },
+            },
+            {
+                type: "image",
+                title: {
+                    type: "plain_text",
+                    text: "Product Image",
+                    emoji: true,
+                },
+                image_url: `https://d2ln0cvn4pv5w2.cloudfront.net/unsafe/fit-in/256x256/filters:quality(100):max_bytes(200000):fill(white)/${imageUrl}`,
+                alt_text: "Product Image",
+            },
+            {
+                type: "actions",
+                elements: [
+                    {
+                        type: "button",
+                        text: {
+                            type: "plain_text",
+                            emoji: true,
+                            text: "Request This ✅",
+                        },
+                        value: JSON.stringify({
+                            bi: boxedId,
+                            n: requester.name,
+                            ui: requester.userId,
+                        }),
+                        action_id: "createNewRequest",
+                    },
+                ],
+            },
+        ];
+    },
     similarRequest: (existingRequest, newSnack, requester, boxedId) => {
         return {
             text: "🤔 It looks like a similar request was made earlier...",
@@ -128,8 +168,9 @@ I'll just make a note that you want that too ✅`,
                             text: "✅ Sure",
                             type: "button",
                             value: JSON.stringify({
-                                requestId: existingRequest._id,
-                                requester: requester,
+                                ri: existingRequest._id,
+                                n: requester.name,
+                                ui: requester.userId,
                             }),
                         },
                         {
@@ -137,8 +178,9 @@ I'll just make a note that you want that too ✅`,
                             text: "🙅 No, make a new request",
                             type: "button",
                             value: JSON.stringify({
-                                boxedId,
-                                requester: requester,
+                                bi: boxedId,
+                                n: requester.name,
+                                ui: requester.userId,
                             }),
                         },
                     ],
