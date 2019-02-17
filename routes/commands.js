@@ -71,8 +71,20 @@ module.exports = async function routes(fastify) {
 
         return results[0];
     }
+    async function findSnackRequestByUpc(upc) {
+        let results = await SnackRequest.find({
+            "snack.upc": upc,
+        }).limit(1);
 
+        return results[0];
+    }
     function getSnackSimilarity(snackA, snackB) {
+        if (snackA.upc === snackB.upc) {
+            return {
+                name: 1,
+                description: 1,
+            };
+        }
         let name = StringSimiliarity.compareTwoStrings(snackA.name || "", snackB.name || "");
 
         let description = StringSimiliarity.compareTwoStrings(
@@ -94,9 +106,21 @@ module.exports = async function routes(fastify) {
             return;
         }
 
-        let existingRequest = await findSnackRequestByText(newSnack.name);
+        let currentRequester = {
+            _id: userId,
+            name: userName,
+            userId: userId,
+        };
+
         let isExistingRequestSimilar = false;
         let isExistingExactlySame = false;
+
+        let existingRequest = await findSnackRequestByUpc(newSnack.upc);
+
+        if (!existingRequest) {
+            existingRequest = await findSnackRequestByText(newSnack.name);
+        }
+
         if (existingRequest) {
             let similarity = getSnackSimilarity(existingRequest.snack, newSnack);
 
@@ -106,11 +130,6 @@ module.exports = async function routes(fastify) {
 
             isExistingExactlySame = existingRequest.snack.boxedId == newSnack.boxedId;
         }
-        let currentRequester = {
-            _id: userId,
-            name: userName,
-            userId: userId,
-        };
 
         if (isExistingRequestSimilar && existingRequest) {
             request.log.trace(
