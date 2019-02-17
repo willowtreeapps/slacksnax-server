@@ -59,6 +59,8 @@ class BoxedClient {
                 productPayload["variant"]["brandingText"] ||
                 productPayload["variant"]["product"]["brandingText"],
             description:
+                productPayload["variant"]["longDescription"] ||
+                productPayload["variant"]["shortDescription"] ||
                 productPayload["variant"]["product"]["longDescription"] ||
                 productPayload["variant"]["product"]["shortDescription"],
 
