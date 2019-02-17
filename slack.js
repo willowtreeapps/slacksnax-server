@@ -17,9 +17,9 @@ class SlackClient {
     }
 
     handleAction(request, reply) {
-        this.actionHandlers.forEach(handler =>
-            handler(JSON.parse(request.body["payload"]), request, reply)
-        );
+        let payload = JSON.parse(request.body["payload"]);
+        request.log.trace("Handling Slack Action payload ", payload);
+        this.actionHandlers.forEach(handler => handler(payload, request, reply));
     }
 
     addActionHandler(action) {
