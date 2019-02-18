@@ -6,6 +6,7 @@ const uuid = require("uuid/v4");
 const minRequestNameSimiliarity = 0.7;
 const minRequestDescriptionSimiliarity = 0.8;
 
+const buttonContextCacheTtl = 60 * 5; //The maximum amount of time the app will respond to a button request after it is created
 module.exports = async function routes(fastify) {
     const Slack = fastify.Slack;
 
@@ -45,7 +46,9 @@ module.exports = async function routes(fastify) {
                             JSON.stringify({
                                 boxedId: product.boxedId,
                                 requester: currentRequester,
-                            })
+                            }),
+                            "ex",
+                            buttonContextCacheTtl
                         );
 
                         return SlackResponses.boxedSearchResult(
@@ -154,7 +157,9 @@ module.exports = async function routes(fastify) {
                     boxedId: newSnack.boxedId,
                     existingRequest,
                     requester: currentRequester,
-                })
+                }),
+                "ex",
+                buttonContextCacheTtl
             );
 
             if (!isExistingExactlySame) {
@@ -239,7 +244,9 @@ module.exports = async function routes(fastify) {
             let actionStateRedisKey = action["value"];
 
             let actionState = JSON.parse(await fastify.redis.get(actionStateRedisKey));
-
+            if (actionState === undefined) {
+                await response.text("Your request timed out, please try again");
+            }
             let requester = actionState.requester;
 
             let productId = actionState.boxedId;
