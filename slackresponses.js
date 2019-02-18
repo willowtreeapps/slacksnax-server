@@ -1,5 +1,4 @@
 const Boxed = require("./boxed/boxed");
-const StateStore = require("./statestore");
 const getSnackRequestFields = (snackRequest, except) => {
     let fields = [
         {
@@ -85,7 +84,7 @@ I'll just make a note that you want that too ✅`,
             delete_original: true,
         };
     },
-    boxedSearchResult: (name, imageUrl, description, boxedId, requester) => {
+    boxedSearchResult: (name, imageUrl, buttonValue) => {
         return [
             {
                 type: "section",
@@ -114,17 +113,14 @@ I'll just make a note that you want that too ✅`,
                             emoji: true,
                             text: "Request This ✅",
                         },
-                        value: StateStore.storeState({
-                            boxedId,
-                            requester,
-                        }),
+                        value: buttonValue,
                         action_id: "createNewRequest",
                     },
                 ],
             },
         ];
     },
-    similarRequest: (existingRequest, newSnack, requester, boxedId) => {
+    similarRequest: (existingRequest, newSnack, buttonValue) => {
         return {
             text: "🤔 It looks like a similar request was made earlier...",
             attachments: [
@@ -166,19 +162,13 @@ I'll just make a note that you want that too ✅`,
                             name: "addToExistingRequest",
                             text: "✅ Sure",
                             type: "button",
-                            value: StateStore.storeState({
-                                existingRequest,
-                                requester,
-                            }),
+                            value: buttonValue,
                         },
                         {
                             name: "createNewRequest",
                             text: "🙅 No, make a new request",
                             type: "button",
-                            value: StateStore.storeState({
-                                boxedId,
-                                requester,
-                            }),
+                            value: buttonValue,
                         },
                     ],
                 },

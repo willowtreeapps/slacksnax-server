@@ -1,7 +1,7 @@
 const Boxed = require("../boxed/boxed");
 const SlackResponses = require("../slackresponses");
 const StringSimiliarity = require("string-similarity");
-const StateStore = require("../statestore");
+const uuid = require("uuid/v4");
 
 const minRequestNameSimiliarity = 0.7;
 const minRequestDescriptionSimiliarity = 0.8;
@@ -36,14 +36,24 @@ module.exports = async function routes(fastify) {
             );
 
             let blockList = flatten(
-                searchResults.map(product =>
-                    SlackResponses.boxedSearchResult(
-                        product.name,
-                        product.imageUrl,
-                        product.description,
-                        product.boxedId,
-                        currentRequester
-                    )
+                await Promise.all(
+                    searchResults.map(async product => {
+                        let redisKey = `product-search-button-context:${uuid()}`;
+
+                        await fastify.redis.set(
+                            redisKey,
+                            JSON.stringify({
+                                boxedId: product.boxedId,
+                                requester: currentRequester,
+                            })
+                        );
+
+                        return SlackResponses.boxedSearchResult(
+                            product.name,
+                            product.imageUrl,
+                            redisKey
+                        );
+                    })
                 )
             );
             let response = {
@@ -136,14 +146,20 @@ module.exports = async function routes(fastify) {
                 "Found existing snack request for request: " + JSON.stringify(existingRequest)
             );
 
+            let redisKey = `similar-request-button-context:${uuid()}`;
+
+            await fastify.redis.set(
+                redisKey,
+                JSON.stringify({
+                    boxedId: newSnack.boxedId,
+                    existingRequest,
+                    requester: currentRequester,
+                })
+            );
+
             if (!isExistingExactlySame) {
                 await response.formatted(
-                    SlackResponses.similarRequest(
-                        existingRequest,
-                        newSnack,
-                        currentRequester,
-                        newSnack.boxedId
-                    )
+                    SlackResponses.similarRequest(existingRequest, newSnack, redisKey)
                 );
             } else {
                 await addAdditionalRequester(existingRequest, currentRequester, response);
@@ -220,7 +236,9 @@ module.exports = async function routes(fastify) {
             let action = payload["actions"][0];
 
             let name = action["name"] || action["action_id"];
-            let actionState = StateStore.retrieveState(action["value"]);
+            let actionStateRedisKey = action["value"];
+
+            let actionState = JSON.parse(await fastify.redis.get(actionStateRedisKey));
 
             let requester = actionState.requester;
 
@@ -245,6 +263,8 @@ module.exports = async function routes(fastify) {
                     );
                 }
             }
+
+            await fastify.redis.del(actionStateRedisKey);
         }).bind(this)
     );
 };
